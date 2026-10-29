@@ -1,25 +1,38 @@
 /*
- * Milestone 2: one boot answers the questions that decide the XNU port.
- *   - CPU feature registers (16K granule, GIC sysreg interface)
+ * Hardware bring-up probe: one boot answers the questions that decide whether
+ * an XNU port is possible at all on this board.
+ *
+ *   - CPU feature registers: page granule (TGran16), GIC sysreg interface
+ *   - /memory base and size, read from the live FDT rather than assumed
  *   - PSCI/SMCCC version and which PSCI calls the Qualcomm TZ offers
- *   - SMP: PSCI CPU_ON for the 7 secondaries, each reports its MPIDR
- *   - GICv3 Group 1 IRQ from the virtual timer (INTID 19 on Qualcomm)
- * Any unexpected exception paints a blue panic screen.
+ *   - SMP: PSCI CPU_ON for the secondaries, each reports its MPIDR
+ *   - GICv3 Group 1 IRQ from the virtual timer
+ *   - MMU: the identity map at the board's granule, and a PAR probe per region
+ *
+ * Any unexpected exception paints a panic screen.
+ *
+ * Everything board-specific comes from board.h; nothing in this file should
+ * name an address, because a wrong address here shows up as a hang with no
+ * output and is indistinguishable from a hundred other causes.
  */
 #include <stdint.h>
+#include "board.h"
 #include "console.h"
+#include "fdt.h"
 #include "mmu.h"
 #include "loader.h"
+#if BOARD_HAS_UFS
 #include "ufs.h"
+#endif
 
-#define IMEM_RESTART_REASON	0x146aa65cUL	/* qcom,msm-imem restart_reason@65c */
+#define IMEM_RESTART_REASON	BOARD_IMEM_RESTART
 #define RESTART_BOOTLOADER	0x77665500U
-#define PSHOLD			0x0c264000UL
+#define PSHOLD			BOARD_PSHOLD
 
-#define GICD_BASE		0x17a00000UL
-#define GICR_BASE		0x17a60000UL
+#define GICD_BASE		BOARD_GICD
+#define GICR_BASE		BOARD_GICR
 #define GICR_SIZE		0x100000UL
-#define GICR_PE_SIZE		0x20000UL
+#define GICR_PE_SIZE		BOARD_GICR_STRIDE
 #define GICR_TYPER		0x08
 #define GICR_WAKER		0x14
 #define GICR_SGI		0x10000
@@ -30,7 +43,7 @@
 #define GICR_ISPENDR0		(GICR_SGI + 0x200)
 #define GICR_ISACTIVER0		(GICR_SGI + 0x300)
 #define GICR_ICFGR1		(GICR_SGI + 0xc04)
-#define VTIMER_INTID		19	/* DT: <GIC_PPI 3 ...>, not the usual 27 */
+#define VTIMER_INTID		BOARD_VTIMER_INTID
 #define PTIMER_INTID		18	/* DT: <GIC_PPI 2 ...> */
 #define SGI_INTID		1
 
@@ -383,6 +396,7 @@ void shim_main(uint64_t dtb)
 	con_str("LOADER", why);
 	con_skip();
 
+#if BOARD_HAS_UFS
 	/* No payload: probe the internal UFS while the MMU is still off. */
 	stage = "ufs";
 	test_ufs();
@@ -391,6 +405,14 @@ void shim_main(uint64_t dtb)
 	con_str("UFS", "probe done, reset in ~3 min");
 	delay_ms(180000);
 	reset(20);
+#else
+	/*
+	 * No UFS on this board, so there is nothing to probe and the run
+	 * continues into the MMU/PSCI/GIC checks below, which is where the
+	 * answers for a first bring-up actually are.
+	 */
+	stage = "no ufs";
+#endif
 
 	stage = "fill off";
 	uint64_t fill_off = ticks_fill(RED);
@@ -405,16 +427,37 @@ void shim_main(uint64_t dtb)
 	if (rc)
 		con_clear(RED);
 
-	con_str("SHIM", "sweet milestone 3");
+	con_str("SHIM", BOARD_NAME " bring-up probe");
 	con_skip();
 	con_hex2("DTB", "at=", dtb, "magic=", dtb ? __builtin_bswap32(rd32(dtb)) : 0);
+
+	/*
+	 * DRAM geometry, from the tree ABL handed over. Printed before anything
+	 * uses it: if this is wrong, every later number is wrong too, and a wrong
+	 * base means the kernel allocates over a carve-out and the phone dies with
+	 * no message.
+	 */
+	{
+		uint64_t mem_base = 0, mem_size = 0;
+		int have_mem = fdt_memory_base_size(dtb, &mem_base, &mem_size);
+
+		con_hex2("MEM", "base_lo=", mem_base, "base_hi=", mem_base >> 32);
+		con_hex2("MEM", "size_lo=", mem_size, "size_hi=", mem_size >> 32);
+		if (!have_mem)
+			con_str("MEM", "no /memory node: values above are zero");
+	}
+
 	con_hex2("IMAGE", "lo=", mi.img_lo, "hi=", mi.img_hi);
 	con_hex2("MMU", "rc=", rc, "l3=", mi.n_l3);
+	con_hex("GRANULE", mi.granule);
 	con_hex2("TTBR0", "pa=", mi.ttbr, "pa_hi=", mi.ttbr >> 32);
 	con_hex("SCTLR0", mi.sctlr_before);
 	con_hex("SCTLR1", mi.sctlr_after);
 	con_hex("TCR", rsr("tcr_el1"));
 	con_hex2("PARANGE", "mmfr0=", rsr("id_aa64mmfr0_el1") & 0xf, "tg16=", (rsr("id_aa64mmfr0_el1") >> 20) & 0xf);
+	/* tg16 must be 1 for a 16K-page XNU. 0 means the kernel has to be 4K. */
+	con_str("TG16", mmu_granule_16k() ? "supported: 16K kernel ok"
+					 : "ABSENT: kernel must use 4K pages");
 	con_skip();
 	con_hex("PAR img", mmu_probe((uintptr_t)shim_main));
 	con_hex("PAR fb", mmu_probe(FB_PHYS + 0x1000));

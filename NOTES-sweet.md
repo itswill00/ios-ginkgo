@@ -1,5 +1,10 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+> Upstream's notes, kept as the reference device's history. **This repository is
+> the ginkgo port; the active handoff is [`NOTES-ginkgo.md`](NOTES-ginkgo.md).**
+> Everything below is about sweet and stays valid for sweet only: its GIC base,
+> framebuffer, UFS storage and 16 KB granule do not apply to ginkgo.
+
 ## Agent handoff / active work (2026-10-15, latest)
 
 ### >>> UPDATE 2026-10-18 (read first, then the 10-17 handoff below) <<<
