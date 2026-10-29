@@ -1,5 +1,21 @@
 # ios-ginkgo
 
+<p align="center">
+  <a href="https://github.com/itswill00/ios-ginkgo/releases/latest"><img src="https://img.shields.io/github/v/release/itswill00/ios-ginkgo?style=flat-square&label=release&color=77216F" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/itswill00/ios-ginkgo?style=flat-square&color=blue" alt="License"></a>
+  <img src="https://img.shields.io/badge/kernel-XNU%208796-000000?style=flat-square&logo=apple&logoColor=white" alt="XNU 8796">
+  <img src="https://img.shields.io/badge/iOS%20userland-16.7.16-333333?style=flat-square&logo=apple&logoColor=white" alt="iOS 16.7.16">
+  <img src="https://img.shields.io/badge/device-Redmi%20Note%208-FF6900?style=flat-square&logo=xiaomi&logoColor=white" alt="Redmi Note 8">
+  <img src="https://img.shields.io/badge/SoC-SM6125-8E44AD?style=flat-square" alt="SM6125">
+  <img src="https://img.shields.io/badge/status-probe%20only-critical?style=flat-square" alt="Status: probe only">
+</p>
+
+<p align="center">
+  <a href="https://github.com/itswill00/ios-ginkgo/commits/ginkgo-port"><img src="https://img.shields.io/github/last-commit/itswill00/ios-ginkgo?style=flat-square&label=last%20commit" alt="Last commit"></a>
+  <a href="https://github.com/itswill00/ios-ginkgo/stargazers"><img src="https://img.shields.io/github/stars/itswill00/ios-ginkgo?style=flat-square" alt="Stars"></a>
+  <a href="https://github.com/itswill00/ios-ginkgo/issues"><img src="https://img.shields.io/github/issues/itswill00/ios-ginkgo?style=flat-square" alt="Issues"></a>
+</p>
+
 Apple's XNU kernel on the **Xiaomi Redmi Note 8** (`ginkgo`, SM6125 /
 Snapdragon 665).
 
